@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --c9: #04313A;
+  --c7: #09707F;
+  --c5: #0E9BB0;
+  --c2: #C4EBF2;
+  --c0: #EEF9FB;
+  --bg: #F4F1EC;
+  --bg2: #E8E3DA;
+  --card: #FFF;
+  --brd: #E5E0D7;
+  --ink: #111820;
+  --ink2: #4A5568;
+  --ink3: #9CA3AF;
+  --red: #B91C1C;
+  --grn: #065F46;
+}
+
+.dark {
+  --bg: #09181F;
+  --bg2: #0F2028;
+  --card: #122028;
+  --brd: #1B3040;
+  --ink: #E2EDF0;
+  --ink2: #7BA8B5;
+  --ink3: #3C6070;
+  --c0: #081820;
+  --c2: #0D3D4A;
+}
+
+html, body {
+  background-color: var(--bg);
+  color: var(--ink);
+}
+
+/* Suggestion dropdown */
+.sug {
+  @apply absolute z-50 w-full mt-1 rounded-xl shadow-lg border bg-white max-h-64 overflow-y-auto;
+  border-color: var(--brd);
+}
+.si {
+  @apply flex flex-col gap-0.5 px-3 py-2 cursor-pointer hover:bg-teal-50 text-sm;
+}
+.sin { @apply font-semibold text-[var(--ink)]; }
+.sis { @apply text-xs text-[var(--ink3)]; }
+
+mark {
+  background: #c4ebf2;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Flash animation for added items */
+@keyframes flash {
+  0%   { background: var(--c0); }
+  100% { background: transparent; }
+}
+.flash { animation: flash 0.6s ease-out; }
