@@ -53,7 +53,7 @@ export default function ProfileModal({ profile, onClose, onSaved }: Props) {
     if (error) {
       console.error(`[uploadFile] FALLO upload → bucket="${bucket}" path="${path}"`, {
         message: error.message,
-        statusCode: (error as Record<string,unknown>).statusCode,
+        statusCode: (error as unknown as Record<string,unknown>).statusCode,
         error,
       });
       return null;

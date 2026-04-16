@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DoctorProfile } from "@/types";
 import ProfileModal from "@/components/ProfileModal";
 import { cn } from "@/lib/utils";
+import { ProfileContext } from "@/lib/context/profile";
 
 interface Props {
   profile: DoctorProfile;
@@ -107,7 +108,9 @@ export default function AppShell({ profile, isAdmin, children }: Props) {
 
       {/* ── Content ── */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
-        {children}
+        <ProfileContext.Provider value={{ profile: currentProfile, setProfile: setCurrentProfile }}>
+          {children}
+        </ProfileContext.Provider>
       </main>
 
       {/* ── Profile modal ── */}

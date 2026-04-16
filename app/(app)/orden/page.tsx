@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import DxSearch from "@/components/ui/DxSearch";
 import ExamSearch from "@/components/ui/ExamSearch";
-import { ExamItem, DoctorProfile } from "@/types";
+import { ExamItem } from "@/types";
+import { useProfile } from "@/lib/context/profile";
 import { formatDateLong } from "@/lib/utils";
 import { buildOrden } from "@/lib/pdf/builders";
 import { loadProfileImages } from "@/lib/pdf/loadImage";
@@ -21,7 +21,7 @@ export default function OrdenPage() {
 
 function OrdenForm() {
   const toast = useToast();
-  const [profile, setProfile] = useState<DoctorProfile | null>(null);
+  const { profile } = useProfile();
   const [pat, setPat] = useState({ nombre: "", dni: "", edad: "", sexo: "", fecha: todayISO() });
   const [dx, setDx] = useState("");
   const [indicacion, setIndicacion] = useState("");
@@ -29,21 +29,10 @@ function OrdenForm() {
   const [examenes, setExamenes] = useState<ExamItem[]>([]);
   const [newExam, setNewExam] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [sigMode, setSigMode] = useState<"rubrica" | "digital">("rubrica");
+  const [sigMode, setSigMode] = useState<"rubrica" | "digital">(profile.sig_mode || "rubrica");
   const [hasPrevPat, setHasPrevPat] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase.from("profiles").select("*").eq("id", user.id).single()
-        .then(({ data }) => {
-          if (data) {
-            setProfile(data as DoctorProfile);
-            setSigMode((data as DoctorProfile).sig_mode || "rubrica");
-          }
-        });
-    });
     setHasPrevPat(!!localStorage.getItem(LAST_PAT_KEY));
   }, []);
 

@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import DxSearch from "@/components/ui/DxSearch";
 import MedSearch from "@/components/ui/MedSearch";
 import ExamSearch from "@/components/ui/ExamSearch";
-import { MedItem, ExamItem, DoctorProfile } from "@/types";
+import { MedItem, ExamItem } from "@/types";
 import { newFolio, formatDateLong } from "@/lib/utils";
 import { generateFolio } from "@/lib/pdf/folio";
 import { INDIC_DB } from "@/lib/data/indicaciones";
@@ -14,6 +13,7 @@ import { tpls } from "@/lib/data/indicaciones";
 import { buildReceta } from "@/lib/pdf/builders";
 import { loadProfileImages } from "@/lib/pdf/loadImage";
 import { saveHistory } from "@/lib/pdf/saveHistory";
+import { useProfile } from "@/lib/context/profile";
 
 const LAST_PAT_KEY = "recetapp_lastpat";
 
@@ -29,7 +29,7 @@ export default function RecetaPage() {
 
 function RecetaForm() {
   const toast = useToast();
-  const [profile, setProfile] = useState<DoctorProfile | null>(null);
+  const { profile } = useProfile();
   const [folio, setFolio] = useState(newFolio());
   const [pat, setPat] = useState({ nombre: "", dni: "", edad: "", sexo: "", fecha: todayISO(), hora: nowTime() });
   const [dx, setDx] = useState("");
@@ -40,21 +40,10 @@ function RecetaForm() {
   const [newExam, setNewExam] = useState("");
   const [generating, setGenerating] = useState(false);
   const [showTpls, setShowTpls] = useState(false);
-  const [sigMode, setSigMode] = useState<"rubrica" | "digital">("rubrica");
+  const [sigMode, setSigMode] = useState<"rubrica" | "digital">(profile.sig_mode || "rubrica");
   const [hasPrevPat, setHasPrevPat] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase.from("profiles").select("*").eq("id", user.id).single()
-        .then(({ data }) => {
-          if (data) {
-            setProfile(data as DoctorProfile);
-            setSigMode((data as DoctorProfile).sig_mode || "rubrica");
-          }
-        });
-    });
     setHasPrevPat(!!localStorage.getItem(LAST_PAT_KEY));
   }, []);
 

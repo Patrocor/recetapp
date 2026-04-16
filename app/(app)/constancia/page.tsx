@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import DxSearch from "@/components/ui/DxSearch";
-import { DoctorProfile } from "@/types";
+import { useProfile } from "@/lib/context/profile";
 import { formatDateLong } from "@/lib/utils";
 import { buildConstancia } from "@/lib/pdf/builders";
 import { loadProfileImages } from "@/lib/pdf/loadImage";
@@ -27,28 +26,17 @@ export default function ConstanciaPage() {
 
 function ConstanciaForm() {
   const toast = useToast();
-  const [profile, setProfile] = useState<DoctorProfile | null>(null);
+  const { profile } = useProfile();
   const [pat, setPat] = useState({ nombre: "", dni: "", edad: "", sexo: "", fecha: todayISO(), hora: nowTime() });
   const [tipo, setTipo] = useState("");
   const [dx, setDx] = useState("");
   const [dest, setDest] = useState("");
   const [textoLibre, setTextoLibre] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [sigMode, setSigMode] = useState<"rubrica" | "digital">("rubrica");
+  const [sigMode, setSigMode] = useState<"rubrica" | "digital">(profile.sig_mode || "rubrica");
   const [hasPrevPat, setHasPrevPat] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase.from("profiles").select("*").eq("id", user.id).single()
-        .then(({ data }) => {
-          if (data) {
-            setProfile(data as DoctorProfile);
-            setSigMode((data as DoctorProfile).sig_mode || "rubrica");
-          }
-        });
-    });
     setHasPrevPat(!!localStorage.getItem(LAST_PAT_KEY));
   }, []);
 
