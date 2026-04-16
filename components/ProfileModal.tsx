@@ -46,12 +46,21 @@ export default function ProfileModal({ profile, onClose, onSaved }: Props) {
 
   async function uploadFile(file: File, bucket: string, path: string): Promise<string | null> {
     const supabase = createClient();
-    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+    console.log(`[uploadFile] iniciando → bucket="${bucket}" path="${path}" size=${file.size} type=${file.type}`);
+    const { data: uploadData, error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, { upsert: true, contentType: file.type });
     if (error) {
-      console.error(`[uploadFile] ${bucket}/${path}:`, error.message);
+      console.error(`[uploadFile] FALLO upload → bucket="${bucket}" path="${path}"`, {
+        message: error.message,
+        statusCode: (error as Record<string,unknown>).statusCode,
+        error,
+      });
       return null;
     }
+    console.log(`[uploadFile] upload OK →`, uploadData);
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    console.log(`[uploadFile] publicUrl →`, data.publicUrl);
     return data.publicUrl;
   }
 
@@ -79,52 +88,84 @@ export default function ProfileModal({ profile, onClose, onSaved }: Props) {
       return;
     }
     setSaving(true);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
+    console.log("[handleSave] iniciando guardado de perfil");
+    try {
+      const supabase = createClient();
 
-    const especialidad = form.especialidad === "__otra__" ? espOtra.trim() : form.especialidad;
-    const updates: Record<string, unknown> = {
-      ...form,
-      especialidad,
-      titulo: form.titulo,
-      pdf_config: pdfConfig,
-    };
-    // Remove the __otra__ sentinel if present
-    if (updates.especialidad === "__otra__") updates.especialidad = espOtra.trim();
+      // 1. Verificar sesión
+      console.log("[handleSave] 1. obteniendo usuario...");
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log("[handleSave] 1. resultado →", { userId: user?.id ?? null, authError });
+      if (!user) {
+        alert("Sesión expirada. Recarga la página e inicia sesión de nuevo.");
+        return;
+      }
 
-    if (logoPreview && logoRef.current?.files?.[0]) {
-      const ext = logoRef.current.files[0].name.split(".").pop() ?? "png";
-      const url = await uploadFile(logoRef.current.files[0], "logos", `${user.id}/logo.${ext}`);
-      if (url) {
+      const especialidad = form.especialidad === "__otra__" ? espOtra.trim() : form.especialidad;
+      const updates: Record<string, unknown> = {
+        nombre:         form.nombre,
+        cmp:            form.cmp,
+        especialidad,
+        consultorio:    form.consultorio,
+        direccion:      form.direccion,
+        telefono:       form.telefono,
+        email_contacto: form.email_contacto,
+        titulo:         form.titulo,
+        pdf_config:     pdfConfig,
+      };
+      console.log("[handleSave] 2. updates a enviar →", updates);
+
+      // 2. Subir logo si hay nuevo archivo
+      if (logoPreview && logoRef.current?.files?.[0]) {
+        console.log("[handleSave] 3. subiendo logo...");
+        const ext = logoRef.current.files[0].name.split(".").pop() ?? "png";
+        const url = await uploadFile(logoRef.current.files[0], "logos", `${user.id}/logo.${ext}`);
+        if (!url) {
+          alert("Error al subir el logo. Revisa la consola (F12) para ver el error exacto.");
+          return;
+        }
         updates.logo_url = url;
-      } else {
-        setSaving(false);
-        alert("Error al subir el logo. Verifica que el bucket 'logos' existe y tiene permisos.");
-        return;
+        console.log("[handleSave] 3. logo_url guardado →", url);
       }
-    }
-    if (firmaPreview && firmaRef.current?.files?.[0]) {
-      const url = await uploadFile(firmaRef.current.files[0], "firmas", `${user.id}/firma.png`);
-      if (url) {
+
+      // 3. Subir firma si hay nuevo archivo
+      if (firmaPreview && firmaRef.current?.files?.[0]) {
+        console.log("[handleSave] 4. subiendo firma...");
+        const url = await uploadFile(firmaRef.current.files[0], "firmas", `${user.id}/firma.png`);
+        if (!url) {
+          alert("Error al subir la firma. Revisa la consola (F12) para ver el error exacto.");
+          return;
+        }
         updates.firma_url = url;
-        updates.sig_mode = "rubrica";
-      } else {
-        setSaving(false);
-        alert("Error al subir la firma. Verifica que el bucket 'firmas' existe y tiene permisos.");
+        updates.sig_mode  = "rubrica";
+        console.log("[handleSave] 4. firma_url guardado →", url);
+      }
+
+      // 4. Actualizar profiles
+      console.log("[handleSave] 5. ejecutando UPDATE en profiles...");
+      const { data, error: updateError } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user.id)
+        .select()
+        .single();
+
+      console.log("[handleSave] 5. resultado UPDATE →", { data, updateError });
+
+      if (updateError) {
+        console.error("[handleSave] error UPDATE profiles →", updateError);
+        alert(`Error al guardar perfil: ${updateError.message}`);
         return;
       }
+
+      if (data) onSaved(data as DoctorProfile);
+      console.log("[handleSave] perfil guardado exitosamente");
+    } catch (err) {
+      console.error("[handleSave] excepción no controlada →", err);
+      alert("Error inesperado al guardar. Revisa la consola (F12).");
+    } finally {
+      setSaving(false);
     }
-
-    const { data } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", user.id)
-      .select()
-      .single();
-
-    setSaving(false);
-    if (data) onSaved(data as DoctorProfile);
   }
 
   const inputCls = "w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition bg-[var(--bg)] border-[var(--brd)]";
