@@ -44,12 +44,13 @@ export default function ProfileModal({ profile, onClose, onSaved }: Props) {
 
   function set(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); }
 
-  async function uploadFile(file: File, bucket: string, userId: string) {
+  async function uploadFile(file: File, bucket: string, path: string): Promise<string | null> {
     const supabase = createClient();
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
-    if (error) return null;
+    if (error) {
+      console.error(`[uploadFile] ${bucket}/${path}:`, error.message);
+      return null;
+    }
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
   }
@@ -80,7 +81,7 @@ export default function ProfileModal({ profile, onClose, onSaved }: Props) {
     setSaving(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSaving(false); return; }
 
     const especialidad = form.especialidad === "__otra__" ? espOtra.trim() : form.especialidad;
     const updates: Record<string, unknown> = {
@@ -93,14 +94,25 @@ export default function ProfileModal({ profile, onClose, onSaved }: Props) {
     if (updates.especialidad === "__otra__") updates.especialidad = espOtra.trim();
 
     if (logoPreview && logoRef.current?.files?.[0]) {
-      const url = await uploadFile(logoRef.current.files[0], "logos", user.id);
-      if (url) updates.logo_url = url;
+      const ext = logoRef.current.files[0].name.split(".").pop() ?? "png";
+      const url = await uploadFile(logoRef.current.files[0], "logos", `${user.id}/logo.${ext}`);
+      if (url) {
+        updates.logo_url = url;
+      } else {
+        setSaving(false);
+        alert("Error al subir el logo. Verifica que el bucket 'logos' existe y tiene permisos.");
+        return;
+      }
     }
     if (firmaPreview && firmaRef.current?.files?.[0]) {
-      const url = await uploadFile(firmaRef.current.files[0], "firmas", user.id);
+      const url = await uploadFile(firmaRef.current.files[0], "firmas", `${user.id}/firma.png`);
       if (url) {
         updates.firma_url = url;
         updates.sig_mode = "rubrica";
+      } else {
+        setSaving(false);
+        alert("Error al subir la firma. Verifica que el bucket 'firmas' existe y tiene permisos.");
+        return;
       }
     }
 
